@@ -168,7 +168,7 @@ static int init_rbsp_cache(struct RBSPCacheData *const rbsp_ctx);
 
 /* Realloc rbsp_cache adding an extra 64KB to previously allocated size
    and copy previous content */
-static int extend_rbsp_cache(struct RBSPCacheData *const rbsp_ctx, const int extend);
+static int extend_rbsp_cache(struct RBSPCacheData *const rbsp_ctx, size_t min_size);
 
 static void free_rbsp_cache(struct RBSPCacheData *const rbsp_ctx);
 
@@ -649,7 +649,7 @@ append_rbsp_segment_to_cache(struct ReaderCache *const cache_ctx,
 
     if (rbsp_cache->cache_size < rbsp_cache->rbsp_size + sgmt_size) {
         int ret;
-         ret = extend_rbsp_cache(rbsp_cache, sgmt_size);
+         ret = extend_rbsp_cache(rbsp_cache, (size_t) sgmt_size);
          if (ret < 0) {
              return ret;
          }
@@ -885,20 +885,16 @@ free_rbsp_cache(struct RBSPCacheData *const rbsp_ctx)
 }
 
 static int
-extend_rbsp_cache(struct RBSPCacheData *const rbsp_ctx, const int extend)
+extend_rbsp_cache(struct RBSPCacheData *const rbsp_ctx, size_t min_size)
 {
     uint8_t *old_cache = rbsp_ctx->start;
     uint8_t *new_cache;
-    size_t new_size = rbsp_ctx->cache_size + ((extend / OVRBSP_CACHE_SIZE) + 1) + OVRBSP_CACHE_SIZE;
+    size_t new_size = rbsp_ctx->cache_size + (min_size / OVRBSP_CACHE_SIZE + 1) * OVRBSP_CACHE_SIZE;
 
-    new_cache = ov_malloc(new_size);
+    new_cache = realloc(old_cache, new_size);
     if (!new_cache) {
         return OV_ENOMEM;
     }
-
-    memcpy(new_cache, old_cache, rbsp_ctx->rbsp_size);
-
-    ov_free(old_cache);
 
     rbsp_ctx->start = new_cache;
     rbsp_ctx->end = rbsp_ctx->start + rbsp_ctx->rbsp_size;
